@@ -1,0 +1,23 @@
+repos:
+- repo: https://github.com/astral-sh/uv-pre-commit
+  # uv version.
+  rev: 0.9.5
+  hooks:
+  # Update the uv lockfile
+  - id: uv-lock
+  - id: uv-export
+    args: [ "--frozen", "--output-file=requirements.txt", "--quiet" ]
+- repo: https://github.com/astral-sh/ruff-pre-commit
+  # Ruff version.
+  rev: v0.14.1
+  hooks:
+  # Run the linter.
+  - id: ruff-check
+  # Run the formatter.
+  - id: ruff-format
+- repo: https://github.com/Yelp/detect-secrets
+  rev: v1.5.0
+  hooks:
+  - id: detect-secrets
+    args: [ '--baseline', '.secrets.baseline' ]
+    exclude: package.lock.json

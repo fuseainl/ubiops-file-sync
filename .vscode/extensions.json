@@ -1,0 +1,16 @@
+{
+    "recommendations": [
+        "bierner.markdown-mermaid",
+        "charliermarsh.ruff",
+        "corschenzi.mermaid-graphical-editor",
+        "janisdd.vscode-edit-csv",
+        "mechatroner.rainbow-csv",
+        "ms-python.vscode-pylance",
+        "ms-python.pylint",
+        "ms-toolsai.jupyter",
+        "ms-vscode.makefile-tools",
+        "njpwerner.autodocstring",
+        "redhat.vscode-yaml",
+        "tamasfe.even-better-toml",
+    ]
+}
