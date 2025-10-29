@@ -22,4 +22,4 @@ build:
 
 publish: build
 	@uv version --bump patch
-	@uv publish
+	@dotenvx run -- bash -c 'uv publish'

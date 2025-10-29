@@ -1,6 +1,6 @@
 [project]
 name = "ubiops-file-sync"
-version = "0.1.0"
+version = "0.1.2"
 description = "UbiOps Bucket File Sync"
 readme = "README.md"
 requires-python = ">=3.12"
