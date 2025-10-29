@@ -1,15 +1,15 @@
 """File sync library for UbiOps bucket integration."""
 
-from .config import SyncConfig
-from .downloader import download_from_bucket
-from .sync import sync_and_watch
-from .uploader import upload_to_bucket
-from .watcher import watch_local_and_upload
+from ubiops_file_sync.downloader import download_file, download_from_bucket
+from ubiops_file_sync.sync import sync_and_watch
+from ubiops_file_sync.uploader import upload_file, upload_to_bucket
+from ubiops_file_sync.watcher import watch_local_and_upload
 
 __all__ = [
-    "SyncConfig",
+    "download_file",
     "download_from_bucket",
     "sync_and_watch",
+    "upload_file",
     "upload_to_bucket",
     "watch_local_and_upload",
 ]
