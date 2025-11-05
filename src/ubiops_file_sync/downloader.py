@@ -50,14 +50,14 @@ def download_file(remote_file: ubiops.FileItem) -> None:
         "Downloading %s from %s/%s",
         (Path(config.local_sync_dir) / str(remote_file.file)).as_posix(),
         config.bucket_name,
-        (Path(config.bucket_dir) / str(remote_file.file)).as_posix(),
+        (Path(str(remote_file.file))).as_posix(),
     )
 
     ubiops.utils.download_file(  # pyright: ignore[reportAttributeAccessIssue]
         api_client,
         config.project_name,
         bucket_name=config.bucket_name,
-        file_name=Path(config.bucket_dir) / str(remote_file.file),
+        file_name=Path(str(remote_file.file)),
         output_path=str(config.local_sync_dir),
         stream=True,
         chunk_size=8192,
