@@ -8,6 +8,7 @@ A Python library for synchronizing files between a local directory and a UbiOps 
 - **File Upload**: Upload individual files or entire directories from a local folder to a UbiOps bucket
 - **Automatic Synchronization**: Watch a local directory for file changes and automatically upload new or modified files
 - **Smart Conflict Resolution**: Optionally preserve newer files when syncing to avoid overwriting recent changes
+- **File Extension Filtering**: Filter out specific file types (e.g., `.pyc`, `.tmp`) from sync operations
 - **Retry Logic**: Built-in exponential backoff retry mechanism for handling network errors and API exceptions
 - **Parallel Operations**: Bulk upload and download operations use parallel processing for improved performance
 
@@ -38,6 +39,7 @@ The library is configured via environment variables. You need to set the followi
 | `BUCKET_DIR` | Directory/prefix within the bucket to sync (can be empty for root) | Yes |
 | `LOCAL_SYNC_DIR` | Local directory path to sync with the bucket | Yes |
 | `OVERWRITE_NEWER_FILES` | Whether to overwrite newer files. Set to `true`/`1`/`yes` to enable smart conflict resolution (preserves newer files), or `false`/`0`/`no` to always overwrite | Yes |
+| `IGNORED_FILE_EXTENSIONS` | Comma-separated list of file extensions to ignore during sync (e.g., `pyc,pyo,tmp,.log`). Extensions are case-insensitive and can be specified with or without leading dots. Leave empty to sync all files. | No |
 
 ### Configuration Example
 
@@ -48,7 +50,27 @@ export BUCKET_NAME="my-bucket"
 export BUCKET_DIR="data"
 export LOCAL_SYNC_DIR="/path/to/local/folder"
 export OVERWRITE_NEWER_FILES="true"
+export IGNORED_FILE_EXTENSIONS="pyc,pyo,tmp,.log"
 ```
+
+### Configuring File Extension Filtering
+
+The `IGNORED_FILE_EXTENSIONS` environment variable allows you to exclude specific file types from synchronization operations. This is useful for ignoring temporary files, compiled files, or other files that shouldn't be synced.
+
+**Examples:**
+
+- `IGNORED_FILE_EXTENSIONS="pyc,pyo"` - Ignore Python bytecode files
+- `IGNORED_FILE_EXTENSIONS=".tmp,.log,.swp"` - Ignore temporary and log files (with or without dots)
+- `IGNORED_FILE_EXTENSIONS="pyc,pyo,tmp,log,swp"` - Ignore multiple file types
+- Leave unset or set to empty string - Sync all files (default behavior)
+
+The filtering applies to:
+
+- Both upload and download operations
+- Individual file operations and bulk operations
+- Files listed when using `list_local_files()` and `list_remote_files()`
+
+Extensions are matched case-insensitively, so `PYC`, `pyc`, and `.PYC` are all treated the same.
 
 ## Usage
 
@@ -213,6 +235,16 @@ All network operations use exponential backoff retry logic to handle transient e
 ### Directory Structure
 
 The library maintains the directory structure between local and remote storage. Files in subdirectories are preserved, and the `BUCKET_DIR` acts as a prefix for all remote file paths.
+
+### File Extension Filtering
+
+When `IGNORED_FILE_EXTENSIONS` is configured, files with matching extensions are excluded from all sync operations:
+
+- **During listing**: Filtered files are not included in the list of files to sync
+- **During upload**: Filtered files are skipped with a log message
+- **During download**: Filtered files are skipped with a log message
+
+The filtering is applied before any other checks (like checking if files are newer), ensuring that ignored files are never processed. This helps reduce unnecessary network traffic and storage usage.
 
 ## Requirements
 
