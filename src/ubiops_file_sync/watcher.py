@@ -13,6 +13,7 @@ from .config import (
     api_client,
     config,
 )
+from .info import should_ignore_file
 from .uploader import upload_file
 
 logger = logging.getLogger(__name__)
@@ -33,8 +34,12 @@ class NewFileEventHandler(FileSystemEventHandler):
             Trigger on a file saving event.
         """
         if not event.is_directory and Path(str(event.src_path)).is_file():
+            local_path = Path(str(event.src_path))
+            if should_ignore_file(local_path):
+                return
+
             logger.info("Detected new or modified file: %s", event.src_path)
-            file_queue.put(Path(str(event.src_path)))
+            file_queue.put(local_path)
 
 
 def worker() -> None:
