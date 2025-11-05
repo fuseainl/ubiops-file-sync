@@ -58,6 +58,7 @@ class SyncConfig(BaseModel):
         """Check if path is a directory"""
         if isinstance(value, str):
             value = Path(value)
+        value.mkdir(parents=True, exist_ok=True)
         if not value.is_dir():
             msg = f"Local path '{value}' is not a directory"
             raise ValueError(msg)
