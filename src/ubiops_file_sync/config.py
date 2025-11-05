@@ -24,6 +24,7 @@ class SyncConfig(BaseModel):
     bucket_dir: str | Path
     local_sync_dir: str | Path
     overwrite_newer: str | bool
+    ignored_extensions: list[str]
 
     @field_validator("*", mode="before")
     @classmethod
@@ -74,6 +75,28 @@ class SyncConfig(BaseModel):
 
         return value
 
+    @field_validator("ignored_extensions", mode="before")
+    @classmethod
+    def parse_ignored_extensions(cls, value: Any) -> list[str]:  # noqa: ANN401
+        """Parse comma-separated string of file extensions to ignore into a list."""
+        if isinstance(value, str):
+            if value.strip() == "":
+                return []
+            # Split by comma, strip whitespace, normalize to lowercase, remove dots
+            return [
+                ext.strip().lower().lstrip(".")
+                for ext in value.split(",")
+                if ext.strip()
+            ]
+        if isinstance(value, list):
+            # Normalize list items
+            return [
+                ext.strip().lower().lstrip(".")
+                for ext in value
+                if isinstance(ext, str) and ext.strip()
+            ]
+        return []
+
 
 @lru_cache(maxsize=1)
 def _build_config() -> SyncConfig:
@@ -85,6 +108,7 @@ def _build_config() -> SyncConfig:
         bucket_dir=getenv("BUCKET_DIR", ""),
         local_sync_dir=getenv("LOCAL_SYNC_DIR", ""),
         overwrite_newer=getenv("OVERWRITE_NEWER_FILES", ""),
+        ignored_extensions=getenv("IGNORED_FILE_EXTENSIONS", ""),  # pyright: ignore[reportArgumentType]
     )
 
 

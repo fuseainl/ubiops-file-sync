@@ -9,7 +9,7 @@ import ubiops  # pyright: ignore[reportMissingTypeStubs]
 from requests import exceptions
 
 from .config import api_client, config
-from .info import is_local_file_newer, list_remote_files
+from .info import is_local_file_newer, list_remote_files, should_ignore_file
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -34,6 +34,13 @@ def download_file(remote_file: ubiops.FileItem) -> None:
     remote_file : ubiops.FileItem
         FileItem containing file, size and time_created
     """
+    if should_ignore_file(str(remote_file.file)):
+        logger.info(
+            "Skipping download of %s (file extension is ignored)",
+            remote_file.file,
+        )
+        return
+
     if config.overwrite_newer and is_local_file_newer(remote_file=remote_file):
         logger.info(
             "Skipping download of %s (local file is newer)",
