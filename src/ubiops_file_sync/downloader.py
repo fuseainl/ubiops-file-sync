@@ -9,10 +9,19 @@ import ubiops  # pyright: ignore[reportMissingTypeStubs]
 from requests import exceptions
 
 from .config import api_client, config
-from .info import is_local_file_newer, list_remote_files, should_ignore_file
+from .info import is_local_file_newer, list_remote_files, should_ignore_file_ext
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
+
+
+def _retrieve_remote_file_path(remote_file: ubiops.FileItem) -> Path:
+    file_path = Path(str(remote_file.file))
+    try:
+        _ = file_path.relative_to(config.bucket_dir)
+    except ValueError:
+        file_path = Path(config.bucket_dir) / file_path
+    return file_path
 
 
 @backoff.on_exception(
@@ -34,38 +43,41 @@ def download_file(remote_file: ubiops.FileItem) -> None:
     remote_file : ubiops.FileItem
         FileItem containing file, size and time_created
     """
-    if should_ignore_file(str(remote_file.file)):
-        logger.info(
+    file_path = _retrieve_remote_file_path(remote_file)
+
+    if should_ignore_file_ext(file_path):
+        logger.debug(
             "Skipping download of %s (file extension is ignored)",
-            remote_file.file,
+            file_path.as_posix(),
         )
         return
 
     if config.overwrite_newer and is_local_file_newer(remote_file=remote_file):
-        logger.info(
+        logger.debug(
             "Skipping download of %s (local file is newer)",
-            remote_file.file,
+            file_path.as_posix(),
         )
         return
 
-    (config.local_sync_dir / Path(str(remote_file.file))).parent.mkdir(
+    local_subpath = config.local_sync_dir / file_path.relative_to(config.bucket_dir)
+    local_subpath.parent.mkdir(
         parents=True,
         exist_ok=True,
     )
 
     logger.info(
-        "Downloading %s from %s/%s",
-        (Path(config.local_sync_dir) / str(remote_file.file)).as_posix(),
+        "Downloading %s/%s to %s",
         config.bucket_name,
-        (Path(str(remote_file.file))).as_posix(),
+        file_path.as_posix(),
+        local_subpath.as_posix(),
     )
 
     ubiops.utils.download_file(  # pyright: ignore[reportAttributeAccessIssue]
         api_client,
         config.project_name,
         bucket_name=config.bucket_name,
-        file_name=Path(str(remote_file.file)),
-        output_path=str(config.local_sync_dir),
+        file_name=file_path.as_posix(),
+        output_path=str(local_subpath.parent),
         stream=True,
         chunk_size=8192,
     )
@@ -115,7 +127,7 @@ def download_from_bucket() -> None:
 
     if config.overwrite_newer:
         logger.info(
-            "Downloading files from bucket '%s'/%s to local folder %s (skipping newer local files)",
+            "Downloading files from bucket %s/%s to local folder %s (skipping newer local files)",
             config.bucket_name,
             Path(config.bucket_dir).as_posix(),
             local_sync_dir.as_posix(),
@@ -127,7 +139,7 @@ def download_from_bucket() -> None:
             download_file(remote_file)
     else:
         logger.info(
-            "Downloading all files from bucket '%s'/%s to local folder %s",
+            "Downloading all files from bucket %s/%s to local folder %s",
             config.bucket_name,
             Path(config.bucket_dir).as_posix(),
             local_sync_dir.as_posix(),
@@ -147,6 +159,6 @@ def download_from_bucket() -> None:
             logger.exception("Error during bulk download.")
             raise
 
-    _move_downloaded_files()
+        _move_downloaded_files()
 
     logger.info("Download completed.")

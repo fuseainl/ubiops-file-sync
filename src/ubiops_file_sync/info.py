@@ -10,7 +10,7 @@ from requests import exceptions
 from .config import config, core_api, parse_remote_time
 
 
-def should_ignore_file(file_path: Path | str) -> bool:
+def should_ignore_file_ext(file_path: Path | str) -> bool:
     """Check if a file should be ignored based on its extension.
 
     Parameters
@@ -30,6 +30,31 @@ def should_ignore_file(file_path: Path | str) -> bool:
     file_extension = file_path_obj.suffix.lstrip(".").lower()
 
     return file_extension in config.ignored_extensions
+
+
+def should_ignore_file(file_path: Path | str) -> bool:
+    """Check if a file should be ignored based on its path.
+
+    Parameters
+    ----------
+    file_path : Path | str
+        Path to the file to check
+
+    Returns
+    -------
+    bool
+        True if the file should be ignored, False otherwise
+    """
+    file_path = Path(file_path) if isinstance(file_path, str) else file_path
+
+    if not file_path.is_file() or file_path.is_dir():
+        return True
+
+    if file_path.stat().st_size == 0:
+        return True
+
+    return bool(should_ignore_file_ext(file_path))
+
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -66,7 +91,7 @@ def list_remote_files(continuation_token: str | None = None) -> list[ubiops.File
 
     # Filter out ignored extensions
     filtered_files = [
-        f for f in response.files if not should_ignore_file(str(f.file))
+        f for f in response.files if not should_ignore_file_ext(str(f.file))
     ]
     remote_files.extend(filtered_files)
     token = getattr(response, "continuation_token", None)
@@ -88,7 +113,7 @@ def list_local_files() -> list[Path]:
     return [
         f
         for f in Path(config.local_sync_dir).rglob("*")
-        if f.is_file() and not should_ignore_file(f)
+        if f.is_file() and not should_ignore_file_ext(f)
     ]
 
 
@@ -97,7 +122,8 @@ def _retrieve_local_path(remote_file: ubiops.FileItem | None) -> Path | None:
         msg = "Please provide a remote file"
         raise ValueError(msg)
 
-    local_path = Path(config.local_sync_dir) / str(remote_file.file)
+    remote_file_path = Path(str(remote_file.file)).relative_to(config.bucket_dir)
+    local_path = Path(config.local_sync_dir) / remote_file_path
 
     if local_path.exists() and local_path.is_file():
         return local_path

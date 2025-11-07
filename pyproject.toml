@@ -20,6 +20,7 @@ dev = [
     "ipykernel>=7.1.0",
     "pre-commit>=4.3.0",
     "pydantic>=2.11.7",
+    "pytest>=8.4.2",
     "ruff>=0.14.1",
     "ubiops-cli==2.28.0",
 ]

@@ -3,6 +3,7 @@
 import atexit
 import logging
 import threading
+from contextlib import suppress
 from pathlib import Path
 from queue import Queue
 
@@ -19,7 +20,7 @@ from .uploader import upload_file
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
-file_queue = Queue()
+file_queue: Queue[Path | None] = Queue[Path | None]()
 
 
 class NewFileEventHandler(FileSystemEventHandler):
@@ -33,8 +34,8 @@ class NewFileEventHandler(FileSystemEventHandler):
         event : FileClosedEvent
             Trigger on a file saving event.
         """
-        if not event.is_directory and Path(str(event.src_path)).is_file():
-            local_path = Path(str(event.src_path))
+        if not event.is_directory:
+            local_path = Path(str(event.src_path)).absolute()
             if should_ignore_file(local_path):
                 return
 
@@ -46,12 +47,17 @@ def worker() -> None:
     """Watch the queue and upload files from it until the shutdown signal."""
     while True:
         local_path = file_queue.get()
-        if local_path is None:
-            file_queue.task_done()
-            break
+        try:
+            if local_path is None:
+                file_queue.task_done()
+                break
 
-        upload_file(local_path=local_path)
-        file_queue.task_done()
+            upload_file(local_path=local_path)
+        except Exception:
+            logger.exception("Uplod failed for %s", local_path)
+        finally:
+            with suppress(Exception):
+                file_queue.task_done()
 
 
 observer = Observer()
@@ -64,6 +70,7 @@ def shutdown() -> None:
     observer.stop()
     observer.join(timeout=5)
     file_queue.put(None)
+    file_queue.join()
     worker_thread.join(timeout=10)
     api_client.close()
     logger.info("File sync watcher stopped.")
@@ -77,7 +84,11 @@ def watch_local_and_upload() -> None:
     Call `sync_and_watch` to perform an initial download before starting the watch.
     """
     # Start background threads
-    observer.schedule(NewFileEventHandler(), str(config.local_sync_dir), recursive=True)
+    observer.schedule(
+        NewFileEventHandler(),
+        Path(config.local_sync_dir).as_posix(),
+        recursive=True,
+    )
     observer.start()
     worker_thread.start()
 

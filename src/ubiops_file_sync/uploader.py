@@ -8,10 +8,19 @@ import ubiops  # pyright: ignore[reportMissingTypeStubs]
 from requests import exceptions
 
 from .config import api_client, config
-from .info import is_local_file_newer, list_local_files, should_ignore_file
+from .info import is_local_file_newer, list_local_files, should_ignore_file_ext
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
+
+
+def _retrieve_local_file_path(local_path: Path) -> Path:
+    try:
+        _ = local_path.relative_to(config.local_sync_dir)
+    except ValueError:
+        local_path = Path(config.local_sync_dir) / local_path
+
+    return local_path.absolute()
 
 
 @backoff.on_exception(
@@ -33,15 +42,17 @@ def upload_file(local_path: Path) -> None:
     remote_file : ubiops.FileItem
         FileItem containing file, size and time_created
     """
-    if should_ignore_file(local_path):
-        logger.info(
+    local_path = _retrieve_local_file_path(local_path)
+
+    if should_ignore_file_ext(local_path):
+        logger.debug(
             "Skipping upload of %s (file extension is ignored)",
             local_path,
         )
         return
 
     if config.overwrite_newer and not is_local_file_newer(local_path=local_path):
-        logger.info(
+        logger.debug(
             "Skipping upload of %s (remote file is newer)",
             local_path,
         )
@@ -51,18 +62,18 @@ def upload_file(local_path: Path) -> None:
         Path(config.bucket_dir) / local_path.relative_to(config.local_sync_dir)
     ).as_posix()
 
+    logger.info(
+        "Uploading %s to %s/%s",
+        local_path.as_posix(),
+        config.bucket_name,
+        file_name,
+    )
     ubiops.utils.upload_file(  # pyright: ignore[reportAttributeAccessIssue]
         client=api_client,
         project_name=config.project_name,
         file_path=local_path.as_posix(),
         bucket_name=config.bucket_name,
         file_name=file_name,
-    )
-    logger.info(
-        "Uploaded %s to %s/%s",
-        local_path.as_posix(),
-        config.bucket_name,
-        file_name,
     )
 
 
@@ -85,7 +96,7 @@ def upload_to_bucket() -> None:
     """
     if config.overwrite_newer:
         logger.info(
-            "Uploading files from local folder %s to bucket '%s'/%s (skipping newer remote files)",
+            "Uploading files from local folder %s to bucket %s/%s (skipping newer remote files)",
             Path(config.local_sync_dir).as_posix(),
             config.bucket_name,
             Path(config.bucket_dir).as_posix(),

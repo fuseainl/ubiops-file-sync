@@ -23,3 +23,6 @@ build:
 publish: build
 	@uv version --bump patch
 	@dotenvx run -- bash -c 'uv publish'
+
+test:
+	@dotenvx run -- uv run pytest
